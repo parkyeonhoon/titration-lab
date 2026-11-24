@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>중화 적정 가상 실험실</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">⚗</span>
+    <div>
+      <h1>중화 적정 가상 실험실</h1>
+      <p class="sub">화학 반응의 세계 · 산 염기 평형</p>
+    </div>
+  </div>
+  <div class="top-right">
+    <span id="mode-badge" class="badge">모드 선택 전</span>
+    <span id="student-badge" class="badge ghost" hidden></span>
+    <button id="btn-download" class="btn ghost small" type="button" disabled>기록 내려받기</button>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- 1. 실험 설계: 버튼으로 경로 정하기 -->
+  <section class="panel" id="plan-panel" aria-labelledby="plan-title">
+    <div class="panel-head">
+      <h2 id="plan-title">1. 실험 설계</h2>
+      <span class="hint">버튼으로 실험 경로를 정하세요</span>
+    </div>
+    <div id="steps"></div>
+    <div class="route" aria-live="polite">
+      <div class="route-title">내가 고른 경로</div>
+      <div id="route-chips" class="chips"><span class="muted">아직 고른 조건이 없어요</span></div>
+    </div>
+    <label class="reason">
+      <span>이 조건을 고른 이유 (선택)</span>
+      <textarea id="plan-reason" rows="2" placeholder="예: 약산일 수도 있어서 염기성 쪽에서 변하는 지시약을 골랐다"></textarea>
+    </label>
+    <div class="row gap">
+      <button id="btn-start" class="btn primary" type="button" disabled>실험 시작</button>
+      <button id="btn-new" class="btn" type="button" hidden>조건 바꿔 새 실험</button>
+    </div>
+  </section>
+
+  <!-- 2. 실험대 -->
+  <section class="panel" id="bench-panel" aria-labelledby="bench-title">
+    <div class="panel-head">
+      <h2 id="bench-title">2. 실험대 <span id="trial-no" class="muted"></span></h2>
+      <span id="bench-status" class="hint">실험 설계를 먼저 끝내세요</span>
+    </div>
+
+    <div class="bench">
+      <svg id="apparatus" viewBox="0 0 320 470" role="img" aria-label="뷰렛과 삼각 플라스크">
+        <defs>
+          <clipPath id="flask-clip"><path id="flask-shape-clip" d="M128 345 L128 372 L82 448 Q78 458 90 458 L230 458 Q242 458 238 448 L192 372 L192 345 Z"/></clipPath>
+          <clipPath id="bur-clip"><rect x="146" y="24" width="20" height="282" rx="3"/></clipPath>
+          <linearGradient id="glass" x1="0" x2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset=".5" stop-color="#ffffff" stop-opacity=".05"/><stop offset="1" stop-color="#ffffff" stop-opacity=".45"/></linearGradient>
+        </defs>
+        <!-- 스탠드 -->
+        <rect x="40" y="10" width="8" height="452" rx="3" class="stand"/>
+        <rect x="18" y="456" width="120" height="10" rx="3" class="stand"/>
+        <rect x="44" y="150" width="104" height="7" rx="3" class="stand"/>
+        <rect x="140" y="144" width="12" height="20" rx="3" class="stand"/>
+        <!-- 뷰렛 -->
+        <g clip-path="url(#bur-clip)">
+          <rect x="146" y="24" width="20" height="282" class="bur-empty"/>
+          <rect id="bur-liquid" x="146" y="30" width="20" height="276" class="bur-liquid"/>
+        </g>
+        <rect x="146" y="24" width="20" height="282" rx="3" class="glass-line"/>
+        <g id="bur-ticks"></g>
+        <!-- 꼭지 -->
+        <rect x="152" y="306" width="8" height="18" class="glass-line fill-glass"/>
+        <rect id="stopcock" x="138" y="311" width="36" height="8" rx="4" class="stopcock"/>
+        <path d="M153 324 L159 324 L157 342 L155 342 Z" class="glass-line fill-glass"/>
+        <circle id="drop" cx="156" cy="346" r="3.4" class="drop"/>
+        <!-- 삼각 플라스크 -->
+        <g clip-path="url(#flask-clip)">
+          <rect id="flask-liquid" x="70" y="420" width="180" height="40" class="flask-liquid"/>
+          <rect id="flask-tint" x="70" y="420" width="180" height="40" fill="transparent"/>
+        </g>
+        <path d="M128 345 L128 372 L82 448 Q78 458 90 458 L230 458 Q242 458 238 448 L192 372 L192 345" class="glass-line flask"/>
+        <path d="M122 345 L198 345" class="glass-line"/>
+        <rect x="82" y="345" width="156" height="113" fill="url(#glass)" clip-path="url(#flask-clip)"/>
+        <!-- pH 미터 -->
+        <g id="meter" hidden>
+          <path d="M178 352 L182 440" class="probe"/>
+          <rect x="230" y="250" width="80" height="58" rx="8" class="meter-body"/>
+          <text x="270" y="268" class="meter-label">pH</text>
+          <text id="meter-value" x="270" y="296" class="meter-value">--</text>
+          <path d="M240 308 Q205 320 180 352" class="cable"/>
+        </g>
+      </svg>
+
+      <div class="side">
+        <div class="zoom-card">
+          <div class="zoom-title">뷰렛 눈금 확대</div>
+          <svg id="zoom" viewBox="0 0 150 170" aria-label="뷰렛 눈금 확대 보기"></svg>
+          <div id="zoom-read" class="zoom-read"></div>
+        </div>
+        <div class="readout">
+          <div><span class="k">플라스크 색</span><span id="color-name" class="v">-</span></div>
+          <div><span class="k">pH 미터</span><span id="ph-read" class="v">-</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls" id="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">표준 용액 넣기</span>
+        <button class="btn" data-add="0.05" type="button">한 방울</button>
+        <button class="btn" data-add="0.1" type="button">0.1 mL</button>
+        <button class="btn" data-add="0.5" type="button">0.5 mL</button>
+        <button class="btn" data-add="1" type="button">1 mL</button>
+        <button class="btn" id="btn-pour" type="button" title="누르고 있는 동안 계속 떨어져요">꼭지 열기 (누르고 있기)</button>
+      </div>
+      <div class="ctrl-group">
+        <button class="btn accent" id="btn-record" type="button">현재 값 기록</button>
+        <button class="btn warn" id="btn-endpoint" type="button">종말점 표시</button>
+        <button class="btn ghost" id="btn-refill" type="button">뷰렛 다시 채우기</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 데이터 · 입자 · 결과 · AI -->
+  <section class="panel" id="data-panel">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="data" role="tab" type="button">데이터</button>
+      <button class="tab" data-tab="particle" role="tab" type="button">입자 보기</button>
+      <button class="tab" data-tab="result" role="tab" type="button">결과 계산</button>
+      <button class="tab" data-tab="ai" role="tab" type="button" id="tab-ai">AI 조교</button>
+    </div>
+
+    <div class="tab-body" data-body="data">
+      <canvas id="curve" width="640" height="380" aria-label="적정 곡선"></canvas>
+      <p id="curve-note" class="note"></p>
+      <div class="table-wrap">
+        <table id="data-table">
+          <thead><tr><th>#</th><th>넣은 부피 (mL)</th><th>뷰렛 눈금 (mL)</th><th>pH</th><th>색</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="trial-history"></div>
+    </div>
+
+    <div class="tab-body" data-body="particle" hidden>
+      <p class="note">플라스크 속 입자의 양(mmol)을 막대로 보여 줘요. 표준 용액을 넣으면서 어떤 입자가 늘고 줄어드는지 살펴보세요.</p>
+      <div id="particles"></div>
+    </div>
+
+    <div class="tab-body" data-body="result" hidden>
+      <form id="result-form" class="result-form">
+        <label>종말점까지 넣은 표준 용액 부피 (mL)<input name="vol" type="number" step="0.01" min="0" required></label>
+        <label>시료 산(또는 염기)의 가수 n<select name="n"><option value="1">1가</option><option value="2">2가</option></select></label>
+        <label>계산한 시료의 몰 농도 (M)<input name="conc" type="number" step="0.001" min="0" required></label>
+        <label>산의 세기 판단<select name="strength"><option value="">선택</option><option value="strong">강산</option><option value="weak">약산</option><option value="unsure">판단하기 어려움</option></select></label>
+        <label>판단 근거 (적정 곡선·지시약 색을 들어 설명)<textarea name="why" rows="3" required></textarea></label>
+        <label>오차가 생긴 원인 (예상)<textarea name="error" rows="2"></textarea></label>
+        <button class="btn primary" type="submit">결과 제출</button>
+      </form>
+      <div id="result-feedback"></div>
+    </div>
+
+    <div class="tab-body" data-body="ai" hidden>
+      <div id="ai-panel"></div>
+    </div>
+  </section>
+</main>
+
+<!-- 시작 화면 -->
+<div id="start" class="overlay" role="dialog" aria-modal="true" aria-labelledby="start-title">
+  <div class="start-card">
+    <h2 id="start-title">어떤 활동을 할까요?</h2>
+    <div class="mode-grid">
+      <button class="mode" data-mode="practice" type="button">
+        <strong>연습</strong><span>시료와 농도를 알고 조건을 바꿔 가며 적정 곡선을 비교해요</span>
+      </button>
+      <button class="mode" data-mode="explore" type="button">
+        <strong>탐구</strong><span>정체와 농도를 모르는 미지 산을 적정해 세기와 농도를 밝혀요</span>
+      </button>
+      <button class="mode" data-mode="eval" type="button">
+        <strong>평가</strong><span>개인 수행평가. 배정된 미지 산을 혼자 분석해요 (AI 조교 사용 불가)</span>
+      </button>
+    </div>
+    <form id="eval-form" class="eval-form" hidden>
+      <label>학번<input name="sid" required autocomplete="off" placeholder="예: 20301"></label>
+      <label>평가 코드 (선생님이 알려 줌)<input name="code" required autocomplete="off"></label>
+      <button class="btn primary" type="submit">평가 시작</button>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

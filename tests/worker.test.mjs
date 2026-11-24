@@ -1,0 +1,14 @@
+import worker from '../worker/worker.js';
+let captured;
+globalThis.fetch = async (url, init) => { captured = { url, body: JSON.parse(init.body), headers: init.headers };
+  return new Response(JSON.stringify({ content: [{ type: 'text', text: '기록한 값 중 pH가 가장 크게 변한 구간은 어디였나요?' }] }), { status: 200 }); };
+const env = { API_KEY: 'sk-test', ALLOWED_ORIGIN: 'https://me.github.io', CLASS_CODE: 'abc' };
+const mk = (origin, code, body) => new Request('https://w.dev', { method: 'POST', headers: { Origin: origin, 'X-Class-Code': code, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const body = { messages: [{ role: 'user', content: '다음엔 뭘 하죠?' }], state: { 단계: '적정 진행 중' } };
+let r = await worker.fetch(mk('https://me.github.io', 'abc', body), env); console.log(r.status, await r.json(), captured.url, captured.body.model, captured.body.system.includes('적정 진행 중'));
+r = await worker.fetch(mk('https://evil.com', 'abc', body), env); console.log('bad origin', r.status);
+r = await worker.fetch(mk('https://me.github.io', 'x', body), env); console.log('bad code', r.status);
+r = await worker.fetch(new Request('https://w.dev', { method: 'OPTIONS', headers: { Origin: 'https://me.github.io' } }), env); console.log('preflight', r.status, r.headers.get('Access-Control-Allow-Origin'));
+globalThis.fetch = async (url, init) => { captured = { url, body: JSON.parse(init.body) }; return new Response(JSON.stringify({ choices: [{ message: { content: 'OpenAI 답' } }] }), { status: 200 }); };
+r = await worker.fetch(mk('https://me.github.io', 'abc', { messages: [{ role: 'assistant', content: 'hi' }, { role: 'user', content: 'a' }, { role: 'user', content: 'b' }] }), { ...env, PROVIDER: 'openai' });
+console.log('openai', r.status, await r.json(), captured.url, captured.body.messages.map(m => m.role).join(','));
