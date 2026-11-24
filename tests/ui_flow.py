@@ -1,0 +1,57 @@
+import json
+from playwright.sync_api import sync_playwright
+CFG=open('/home/claude/titration-lab/config.js').read().replace('aiEndpoint: ""','aiEndpoint: "http://ai.test/"')
+errs=[]; sent=[]
+def ai(route):
+    sent.append(json.loads(route.request.post_data))
+    route.fulfill(status=200, headers={'Access-Control-Allow-Origin':'*','Content-Type':'application/json'}, body=json.dumps({'reply':'처음 눈금은 몇 mL였나요?'}))
+def page(b, w=1440, h=950):
+    pg=b.new_page(viewport={'width':w,'height':h})
+    pg.on('pageerror', lambda e: errs.append(str(e)))
+    pg.on('console', lambda m: errs.append(m.text) if m.type=='error' and 'ERR_' not in m.text else None)
+    pg.on('dialog', lambda d: d.accept())
+    pg.route('**/cdn.jsdelivr.net/**', lambda r: r.abort())
+    pg.route('**/i.ytimg.com/**', lambda r: r.abort())
+    pg.route('**/config.js', lambda r: r.fulfill(body=CFG, content_type='application/javascript'))
+    pg.route('http://ai.test/**', ai)
+    return pg
+with sync_playwright() as p:
+    b=p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox'])
+    pg=page(b)
+    pg.goto('http://localhost:8765/index.html')
+    pg.click('.mode[data-mode=practice]')
+    print('screen', pg.evaluate('window.__lab.state.screen'), 'plan step disabled', pg.is_disabled('.stp[data-go=plan]'), 'videos', pg.locator('.video').count())
+    pg.screenshot(path='/tmp/v_theory.png', full_page=True)
+    pg.check('#theory-check'); pg.click('#btn-to-plan')
+    def pick(text, nth=0): pg.locator('.bottle', has_text=text).nth(nth).click()
+    pick('아세트산'); pg.locator('.grp', has_text='시료 농도').locator('.bottle', has_text='0.1 M').click()
+    pick('25 mL'); pg.locator('.grp', has_text='표준 용액').first.locator('.bottle', has_text='수산화 나트륨').click(); pg.locator('.grp', has_text='표준 용액 농도').locator('.bottle', has_text='0.1 M').click()
+    pick('페놀프탈레인'); pg.locator('.grp', has_text='pH 미터').locator('.bottle', has_text='사용').first.click(); pick('이상적')
+    pg.screenshot(path='/tmp/v_plan.png', full_page=True)
+    pg.click('#btn-start'); print('no reason -> screen', pg.evaluate('window.__lab.state.screen'))
+    for k in range(3):
+        if k>0:
+            pg.click('#btn-next'); print('plan title', pg.inner_text('#plan-title'), '| prefilled ok', not pg.is_disabled('#btn-start'))
+            if k==2: pick('BTB')
+        pg.fill('#plan-reason', f'{k+1}회차 이유'); pg.click('#btn-start')
+        for i in range(12): pg.click('[data-add="1"]'); pg.click('#btn-record')
+        if k==0: pg.click('#btn-restart'); [pg.click('[data-add="1"]') for _ in range(12)]; pg.click('#btn-record')
+        for i in range(13): pg.click('[data-add="1"]'); pg.click('#btn-record')
+        pg.click('#btn-endpoint')
+        if k==1:
+            pg.click('#btn-ai'); pg.click('.chip-btn >> nth=0'); pg.wait_for_timeout(300)
+            st=sent[-1]['state']; print('AI state', st['단계'], st['완료회차'], len(st['완료한회차'])); pg.screenshot(path='/tmp/v_bench.png'); pg.click('#ai-close')
+    st=pg.evaluate('window.__lab.state')
+    print('trials', [(t['no'],t['status']) for t in st['trials']], 'next', pg.inner_text('#btn-next'))
+    pg.click('#btn-next'); print('screen', pg.evaluate('window.__lab.state.screen'))
+    for i in range(3): pg.fill(f'[name=vol{i}]','25.00'); pg.fill(f'[name=conc{i}]','0.1')
+    pg.select_option('[name=strength]','weak'); pg.fill('[name=why]','중화점 pH가 7보다 큼')
+    print('avg', pg.inner_text('#avg-conc'))
+    pg.click('#result-form button[type=submit]'); print(pg.inner_text('#result-feedback'))
+    pg.screenshot(path='/tmp/v_result.png', full_page=True)
+    pg3=page(b); pg3.goto('http://localhost:8765/index.html?mode=eval'); pg3.fill('[name=sid]','20301'); pg3.fill('[name=code]','A1'); pg3.click('#eval-form button')
+    print('eval AI btn disabled', pg3.is_disabled('#btn-ai'), 'screen', pg3.evaluate('window.__lab.state.screen'))
+    pg3.check('#theory-check'); pg3.click('#btn-to-plan'); pg3.screenshot(path='/tmp/v_eval_plan.png')
+    pg4=page(b,390,844); pg4.goto('http://localhost:8765/index.html?mode=explore'); pg4.screenshot(path='/tmp/v_mobile.png')
+    b.close()
+print('ERRORS', errs)
